@@ -1,0 +1,50 @@
+stages:
+  - test
+  - build
+  - deploy
+
+variables:
+  DOCKER_DRIVER: overlay2
+
+before_script:
+  - docker info
+
+test:
+  stage: test
+  image: python:3.11
+  services:
+    - postgres:15
+  variables:
+    POSTGRES_DB: test_todo_db
+    POSTGRES_USER: postgres
+    POSTGRES_PASSWORD: postgres
+    DB_HOST: postgres
+    DATABASE_URL: postgresql://postgres:postgres@postgres:5432/test_todo_db
+  script:
+    - pip install -r requirements.txt
+    - pytest tests/ -v
+  only:
+    - branches
+
+build:
+  stage: build
+  image: docker:20.10.16
+  services:
+    - docker:20.10.16-dind
+  script:
+    - docker build -t todoapp:$CI_COMMIT_SHA .
+    - echo "Build completed"
+  only:
+    - main
+
+deploy:
+  stage: deploy
+  image: docker:20.10.16
+  services:
+    - docker:20.10.16-dind
+  script:
+    - docker-compose up -d
+    - echo "Deployment completed"
+  only:
+    - main
+  when: manual
